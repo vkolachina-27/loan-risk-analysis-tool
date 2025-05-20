@@ -1,5 +1,3 @@
- bank-ml-mvp/scripts/weak_label_risk.py
-
 import psycopg2
 
 conn = psycopg2.connect(
@@ -7,10 +5,8 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
- Drop old table
 cur.execute("DROP TABLE IF EXISTS risk_labels;")
 
- Build new labels using multiple heuristics
 cur.execute("""
 CREATE TABLE risk_labels AS
 WITH monthly AS (
@@ -85,7 +81,6 @@ if __name__ == "__main__":
     DB_CONN = "dbname=bank_ml_mvp user=bank_user password=your_strong_password"
     conn = psycopg2.connect(DB_CONN)
     cur = conn.cursor()
-     Ensure PK exists before ON CONFLICT insert
     try:
         cur.execute("ALTER TABLE risk_labels ADD CONSTRAINT risk_labels_pk PRIMARY KEY (statement_name);")
     except Exception as e:

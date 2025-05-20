@@ -1,4 +1,3 @@
- scripts/inspect_other.py
 import psycopg2
 import pandas as pd
 

@@ -1,8 +1,8 @@
+# bank-ml-mvp/worker/utils.py
 import os
 import pandas as pd
 import psycopg2
 
- Database connection string: override via environment variable if needed
 db_conn = os.getenv(
     'DB_CONN',
     "dbname=bank_ml_mvp user=bank_user password=your_strong_password"
@@ -21,13 +21,11 @@ def normalize_and_save(df: pd.DataFrame, statement_name: str) -> None:
 
     Rows with null date or amount are skipped. Duplicates are ignored via DB constraint.
     """
-     Ensure required columns exist
     expected_cols = {'date', 'description', 'amount', 'type'}
     missing = expected_cols - set(df.columns)
     if missing:
         raise ValueError(f"Missing columns for normalization: {missing}")
 
-     Connect to Postgres\    
     conn = psycopg2.connect(db_conn)
     cur = conn.cursor()
 
@@ -37,14 +35,11 @@ def normalize_and_save(df: pd.DataFrame, statement_name: str) -> None:
         amount = row['amount']
         tx_type = str(row['type']).strip().lower()
 
-         Skip invalid rows
         if pd.isna(date) or pd.isna(amount):
             continue
 
-         Convert type to boolean: credit=True, debit=False
         debit_credit = True if tx_type == 'credit' else False
 
-         Insert into DB; assume a unique constraint avoids duplicates
         cur.execute(
             """
             INSERT INTO transactions_raw(

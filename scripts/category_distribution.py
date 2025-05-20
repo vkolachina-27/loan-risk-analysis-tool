@@ -1,4 +1,4 @@
- scripts/category_distribution.py
+
 import psycopg2
 import pandas as pd
 

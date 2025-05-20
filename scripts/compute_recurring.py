@@ -1,4 +1,3 @@
- bank-ml-mvp/scripts/compute_recurring.py
 import psycopg2
 
 conn = psycopg2.connect("dbname=bank_ml_mvp user=bank_user password=your_strong_password")

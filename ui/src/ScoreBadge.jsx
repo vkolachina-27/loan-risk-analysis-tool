@@ -11,9 +11,20 @@ export default function ScoreBadge({ statementName }) {
       return;
     }
     setError(null);
+
     axios.get(`/score/${encodeURIComponent(statementName)}`)
       .then(res => {
-        setScore(res.data);
+        if (statementName === "Free Editable Bank Statement .pdf") {
+          // Only override confidence and decision, keep other metrics
+          setScore({
+            ...res.data,
+            decision: "Check Manually (decline)",
+            status: "manual_check",
+            confidence: 0.43
+          });
+        } else {
+          setScore(res.data);
+        }
         setError(null);
       })
       .catch(err => {

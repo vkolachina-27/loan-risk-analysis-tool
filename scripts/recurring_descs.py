@@ -1,4 +1,3 @@
- scripts/recurring_descs.py
 import psycopg2
 import pandas as pd
 

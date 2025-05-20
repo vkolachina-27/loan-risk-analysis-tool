@@ -16,7 +16,6 @@ from psycopg2.extras import RealDictCursor
 app = FastAPI()
 STATEMENTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "statements"))
 
-# Define feature columns
 feature_columns = [
     'avg_monthly_deposits', 'deposits_stability',
     'avg_monthly_withdrawals', 'withdrawals_stability',
@@ -27,7 +26,6 @@ feature_columns = [
     'high_loan_burden', 'negative_net_income', 'debt_service_ratio'
 ]
 
-# Load model and scaler on startup
 rf_risk = None
 scaler = None
 
@@ -53,14 +51,12 @@ def score(statement_name: str):
         conn = psycopg2.connect("dbname=bank_ml_mvp user=bank_user password=your_strong_password")
         cur = conn.cursor()
         
-        # First check if statement exists
         cur.execute("SELECT COUNT(*) FROM monthly_summary WHERE statement_name = %s", (statement_name,))
         count = cur.fetchone()[0]
         if count == 0:
             print(f"Statement not found: {statement_name}")
             return {"error": "Statement not found"}
         
-        # Get monthly stats
         print("Fetching monthly stats...")
         cur.execute("""
             WITH monthly_stats AS (
@@ -96,10 +92,8 @@ def score(statement_name: str):
             return {"error": "No data found for statement"}
             
         print("Processing features...")
-        # Convert row to feature vector and handle potential NULL values
         features = [0 if x is None else float(x) for x in row]
         
-        # Calculate derived features with safe division
         total_deposits = features[4]  # Index from monthly_stats query
         total_withdrawals = features[5]
         num_months = features[9]
@@ -112,28 +106,23 @@ def score(statement_name: str):
         avg_rent = features[11]
         avg_payroll = features[12]
         
-        # Calculate derived features with safe division
         deposits_to_withdrawals = total_deposits / total_withdrawals if total_withdrawals != 0 else 1
         monthly_net = (total_deposits - total_withdrawals) / num_months
         fees_ratio = total_fees / total_deposits if total_deposits != 0 else 0
         
-        # Fix transfer ratio calculation to handle negative values
         transfer_in_amount = abs(total_transfer_in) if total_transfer_in < 0 else total_transfer_in
         transfer_out_amount = abs(total_transfer_out) if total_transfer_out < 0 else total_transfer_out
         transfer_ratio = (transfer_in_amount - transfer_out_amount) / (total_deposits + 1)
         
-        # Calculate monthly metrics
         monthly_loan_payment = abs(total_loan_payments) / num_months if total_loan_payments != 0 else 0
         monthly_income = avg_monthly_deposits if avg_monthly_deposits > 0 else 0
         rent_to_income = avg_rent / (monthly_income + 1)
         loan_to_income = monthly_loan_payment / (monthly_income + 1)
         
-        # Calculate risk indicators
         high_loan_burden = float(loan_to_income > 0.5)
         negative_net_income = float(monthly_net < 0)
         debt_service_ratio = (monthly_loan_payment + avg_rent) / (monthly_income + 1)
 
-        # Prepare feature vector
         X = [avg_monthly_deposits, features[1],
              avg_monthly_withdrawals, features[3],
              total_fees, total_transfer_in, total_transfer_out,
@@ -146,19 +135,15 @@ def score(statement_name: str):
         for i, val in enumerate(X):
             print(f"{feature_columns[i]}: {val}")
         
-        # Scale features
         X_scaled = scaler.transform([X])
         
-        # Print scaled features
         print("\nScaled features:")
         for i, val in enumerate(X_scaled[0]):
             print(f"{feature_columns[i]}: {val}")
         
-        # Get prediction probability and feature importances
         probs = rf_risk.predict_proba(X_scaled)
         print("\nRaw prediction probabilities:", probs)
         
-        # Extract probabilities
         try:
             approve_prob = float(probs[0][1])
             decline_prob = float(probs[0][0])
@@ -168,22 +153,18 @@ def score(statement_name: str):
             print(f"Error extracting probabilities: {e}")
             approve_prob = 0.0
         
-        # Overall confidence based on weighted deviations
         importance_score = 1.0
         print(f"Importance score: {importance_score}")
         
-        # Final confidence score
         confidence = approve_prob * importance_score
         print(f"Final confidence: {confidence}")
         
-        # Ensure confidence is valid
         confidence = max(0.0, min(1.0, confidence))
         
-        # Determine decision and status based on confidence thresholds
-        if approve_prob >= 0.75:
+        if approve_prob >= 0.7:
             decision = "Approve"
             status = "approve"
-        elif approve_prob <= 0.25:
+        elif approve_prob <= 0.3:
             decision = "Decline"
             status = "decline"
         else:

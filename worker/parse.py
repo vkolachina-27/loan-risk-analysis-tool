@@ -1,4 +1,4 @@
-
+# bank-ml-mvp/worker/parse.py
 import sys, os
 from llm_extract import extract_transactions
 from utils import normalize_and_save
@@ -10,7 +10,6 @@ def main(pdf_path):
     print("[parse] Extracted DataFrame columns:", df.columns.tolist())
     print("[parse] First few rows:\n", df.head())
 
-     Ensure df is a DataFrame and has all required columns
     import pandas as pd
     required_columns = ['date', 'description', 'amount', 'type']
     if not isinstance(df, pd.DataFrame):
@@ -21,7 +20,6 @@ def main(pdf_path):
         print(f"[parse] ERROR: Extracted DataFrame missing columns: {missing_cols}")
         sys.exit(1)
 
-     Drop rows missing any required field
     before_drop = len(df)
     df_clean = df.dropna(subset=required_columns)
     dropped = before_drop - len(df_clean)
@@ -34,10 +32,8 @@ def main(pdf_path):
         print("[parse] ERROR: no transactions after dropping missing fields")
         sys.exit(1)
 
-     Convert date column to string for regex validation
     df['date'] = df['date'].astype(str)
 
-     Filter out rows with invalid dates
     import re
     def is_valid_date(date_str):
         return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", str(date_str)))
@@ -48,12 +44,10 @@ def main(pdf_path):
     df = df[df['date'].apply(is_valid_date)]
     print("[parse] DataFrame after date validation:", df.shape)
 
-     If df is now empty, exit gracefully
     if df.empty:
         print("[parse] ERROR: all rows dropped after date validation")
         sys.exit(1)
 
-     Dedupe by (date, description, abs(amount)), robust to non-string/missing description and non-numeric amount
     import pandas as pd
     df['key'] = df.apply(
         lambda r: (

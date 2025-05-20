@@ -1,12 +1,11 @@
-import pdfplumber, itertools, pandas as pd
+# bank-ml-mvp/worker/llm_extract.py
+import pdfplumber, pandas as pd
 import openai
 import os
 
- Set up OpenAI client for v1+ API
 openai_api_key = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=openai_api_key)
 
- 1. Read all lines
 def read_lines(pdf_path):
     lines = []
     with pdfplumber.open(pdf_path) as pdf:
@@ -14,12 +13,10 @@ def read_lines(pdf_path):
             lines += page.extract_text().splitlines()
     return lines
 
- 2. Chunk with overlap
 def make_chunks(lines, window=40, overlap=10):
     for i in range(0, len(lines), window-overlap):
         yield lines[i:i+window]
 
- 3. Prompt the LLM
 def parse_chunk_with_llm(chunk):
     prompt = f"""
     You are given this snippet of a bank statement (up to ~50 lines).
@@ -41,7 +38,6 @@ def parse_chunk_with_llm(chunk):
     )
     return resp.choices[0].message.content
 
- 4. Aggregate all chunks
 from io import StringIO
 import json
 import re
@@ -49,11 +45,8 @@ import re
 def strip_code_fences(s):
     """Remove markdown code fences (``` or ```json) from a string."""
     s = s.strip()
-     Remove triple backtick code fences, possibly with 'json' or other language
     if s.startswith('```'):
-         Remove first line (``` or ```json)
         s = re.sub(r'^```[a-zA-Z0-9]*\s*\n?', '', s)
-         Remove trailing triple backticks
         s = re.sub(r'\n?```$', '', s)
     return s.strip()
 
@@ -63,7 +56,6 @@ def extract_transactions(pdf_path):
     for chunk in make_chunks(lines):
         raw_json = parse_chunk_with_llm(chunk)
         cleaned = strip_code_fences(raw_json)
-         Defensive: check for valid JSON
         if not cleaned or not cleaned.strip():
             print("[parse] WARNING: LLM returned empty output for a chunk")
             continue
